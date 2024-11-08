@@ -1,5 +1,6 @@
 #this is version number 12
 #testing the code resilience on dual core
+NODE_ID = 1
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
 
@@ -16,7 +17,7 @@ led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 async def task1():
     while True:
         gc.collect()
-        ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
+        ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
         ota_updater.download_and_install_update_if_available()
         gc.collect()
         await asyncio.sleep(1)
