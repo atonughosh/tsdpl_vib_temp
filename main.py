@@ -1,4 +1,5 @@
-#this is version number 6
+#this is version number 7
+#testing the code resilience on dual core
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
 
@@ -17,7 +18,7 @@ async def task1():
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
         ota_updater.download_and_install_update_if_available()
         gc.collect()
-        await asyncio.sleep(600)
+        await asyncio.sleep(1)
 
 async def task2():
     while True:
