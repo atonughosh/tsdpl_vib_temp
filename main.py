@@ -1,4 +1,4 @@
-#this is version number 7
+#this is version number 8
 #testing the code resilience on dual core
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
