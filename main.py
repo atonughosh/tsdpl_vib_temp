@@ -15,6 +15,7 @@ led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 
 async def task1():
     while True:
+        gc.collect()
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
         ota_updater.download_and_install_update_if_available()
         gc.collect()
