@@ -1,10 +1,11 @@
-#this is version number 5
+#this is version number 6
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
 
 import uasyncio as asyncio
 from machine import Pin
 import time
+import gc
 
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
 
@@ -15,14 +16,15 @@ async def task1():
     while True:
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
         ota_updater.download_and_install_update_if_available()
-        await asyncio.sleep(1)
+        gc.collect()
+        await asyncio.sleep(600)
 
 async def task2():
     while True:
         led.value(1)  # Turn on the LED
-        time.sleep(2)  # Delay for 500ms
+        time.sleep(0.5)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        time.sleep(2)  # Delay for 500ms
+        time.sleep(0.5)  # Delay for 500ms
         await asyncio.sleep(2)
 
 async def main():
