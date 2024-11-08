@@ -1,33 +1,31 @@
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
 
-import _thread
+import uasyncio as asyncio
 from machine import Pin
 import time
 
-
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
-
 
 # Set up pin for the LED
 led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 
-
-def task1():
+async def task1():
     while True:
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py")
         ota_updater.download_and_install_update_if_available()
+        await asyncio.sleep(1)
 
-def task2():
-    # Blinking loop
+async def task2():
     while True:
         led.value(1)  # Turn on the LED
-        time.sleep(0.5)  # Delay for 500ms
+        time.sleep(2)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        time.sleep(0.5)  # Delay for 500ms
+        time.sleep(2)  # Delay for 500ms
+        await asyncio.sleep(2)
 
-# Start Task 1 in a new thread
-_thread.start_new_thread(task1, ())
+async def main():
+    await asyncio.gather(task1(), task2())
 
-# Run Task 2 in the main thread
-task2()
+# Start the main event loop
+asyncio.run(main())
