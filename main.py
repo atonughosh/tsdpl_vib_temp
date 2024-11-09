@@ -94,7 +94,7 @@ async def task1():
         # Await the async method download_and_install_update_if_available
         await ota_updater.download_and_install_update_if_available()  # Await this async function
         gc.collect()
-        await asyncio.sleep(65)  # Allow the loop to yield control for a while
+        await asyncio.sleep(120)  # Allow the loop to yield control for a while
 
 async def task2():
     while True:
