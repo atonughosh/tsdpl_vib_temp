@@ -21,6 +21,8 @@ def create_boot_file():
         # Specify the full contents of boot.py here
         boot_code = f"""
 import os
+import gc
+import uasyncio as asyncio
 
 # Import SSID and PASSWORD from WIFI_CONFIG.py
 try:
@@ -40,9 +42,24 @@ NODE_ID = "1"
 gc.collect()
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
 
-ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
+async def check_and_install_update():
+    try:
+        # Initialize OTAUpdater
+        ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
+        # Await the update check and installation
+        await ota_updater.download_and_install_update_if_available()
+    except:
+        print(f"Error during OTA update")
 
-ota_updater.download_and_install_update_if_available()
+
+# Start the async update process
+async def boot():
+    gc.collect()
+    await check_and_install_update()  # Await the update process
+
+# Execute the boot process using uasyncio
+asyncio.run(boot())
+
 gc.collect()
 
 # You can add more boot actions here if needed
@@ -73,21 +90,22 @@ async def task1():
         gc.collect()
         from ota import OTAUpdater
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
-        ota_updater.download_and_install_update_if_available()
+        # Await the async method download_and_install_update_if_available
+        await ota_updater.download_and_install_update_if_available()  # Await this async function
         gc.collect()
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)  # Allow the loop to yield control for a while
 
 async def task2():
     while True:
         led.value(1)  # Turn on the LED
-        time.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(0.5)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        time.sleep(0.5)  # Delay for 500ms
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)  # Additional delay before repeating the task
 
 async def main():
-    await asyncio.gather(task1(), task2())
+    await asyncio.gather(task1(), task2())  # Run both tasks concurrently
 
 # Start the main event loop
-asyncio.run(main())
+asyncio.run(main())  # This will start the asynchronous loop
 
