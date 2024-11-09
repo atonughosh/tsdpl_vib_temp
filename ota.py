@@ -6,6 +6,7 @@ import machine
 from time import sleep
 import time
 import gc
+import uasyncio as asyncio
 
 class OTAUpdater:
     """ This class handles OTA updates. It connects to the Wi-Fi, checks for updates, downloads and installs them."""
@@ -94,7 +95,7 @@ class OTAUpdater:
 
     import time
 
-    async def check_for_updates(self, max_retries=3, delay=65):
+    async def check_for_updates(self, max_retries=3, delay=10):
         """ Check if updates are available with retry on all errors. """
         self.connect_wifi()
 
@@ -162,5 +163,3 @@ class OTAUpdater:
                 self.update_and_reset()
         else:
             print('No new updates available.')
-
-
