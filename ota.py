@@ -44,14 +44,30 @@ class OTAUpdater:
                 json.dump({'version': self.current_version}, f)
 
     def connect_wifi(self):
-        """ Connect to Wi-Fi."""
+        """ Connect to Wi-Fi with error handling. """
         sta_if = network.WLAN(network.STA_IF)
         sta_if.active(True)
-        sta_if.connect(self.ssid, self.password)
-        while not sta_if.isconnected():
-            print('.', end="")
-            sleep(0.25)
-        print(f'Connected to WiFi, IP is: {sta_if.ifconfig()[0]}')
+
+        try:
+            print("Connecting to WiFi...")
+            sta_if.connect(self.ssid, self.password)
+
+            # Wait for the connection with a timeout
+            timeout = 30  # Timeout in seconds
+            start_time = time.time()
+
+            while not sta_if.isconnected():
+                if time.time() - start_time > timeout:
+                    raise OSError("Wi-Fi connection timeout")
+                print('.', end="")  # Dot to show it's trying to connect
+                time.sleep(0.5)
+
+            print(f'Connected to WiFi, IP is: {sta_if.ifconfig()[0]}')
+
+        except OSError as e:
+            print(f"Error during Wi-Fi connection: {e}")
+            print("Rebooting the device to attempt reconnection...")
+            machine.reset()  # Reboot ESP32 if Wi-Fi connection fails
 
     def fetch_latest_code(self) -> bool:
         """ Fetch the latest code from the repo, returns False if not found."""
