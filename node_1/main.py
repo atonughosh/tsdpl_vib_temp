@@ -1,6 +1,7 @@
 # main.py
-
-# This is version number 14
+import machine
+machine.freq(240000000)
+# This is version number 13
 # Do NOT update following lines
 NODE_ID = 1
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
@@ -93,14 +94,14 @@ async def task1():
         # Await the async method download_and_install_update_if_available
         await ota_updater.download_and_install_update_if_available()  # Await this async function
         gc.collect()
-        await asyncio.sleep(0.5)  # Allow the loop to yield control for a while
+        await asyncio.sleep(65)  # Allow the loop to yield control for a while
 
 async def task2():
     while True:
         led.value(1)  # Turn on the LED
-        await asyncio.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        await asyncio.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)  # Delay for 500ms
         await asyncio.sleep(1)  # Additional delay before repeating the task
 
 async def main():
@@ -108,3 +109,4 @@ async def main():
 
 # Start the main event loop
 asyncio.run(main())  # This will start the asynchronous loop
+
