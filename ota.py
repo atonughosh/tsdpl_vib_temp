@@ -119,6 +119,9 @@ class OTAUpdater:
 
         latest_version = self.current_version
         newer_version_available = False
+        
+        response = None
+        data = None
 
         try:
             print(f"Checking for latest version at {self.version_url}...")
@@ -146,12 +149,26 @@ class OTAUpdater:
                     print("Failed to retrieve valid version data.")
             else:
                 print(f"Unexpected response status: {response.status_code}")
+        
+        except OSError as e:
+            # Handle specific network errors like ECONNABORTED
+            print(f"Error checking for updates: {e}")
+            if '113' in str(e):
+                print("Wi-Fi connection aborted (Error 113). Consider retrying or checking Wi-Fi.")
+            # Optionally, you can try to reconnect to Wi-Fi here or handle it as needed.
 
+        
         except Exception as e:
             # Handle any error (connection issues, timeouts, etc.)
             print(f"Error checking for updates: {e}")
 
         finally:
+            # Clean up response and data objects safely
+            if response:
+                response.close()  # Close the response to free resources
+            if data:
+                del data  # Only delete if data was assigned
+            del response  # Delete response object to free up memory
             gc.collect()
 
         return newer_version_available  # Return False if no update is found
