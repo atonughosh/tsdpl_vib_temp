@@ -22,7 +22,7 @@ async def task1():
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
         ota_updater.download_and_install_update_if_available()
         gc.collect()
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
 
 async def task2():
     while True:
@@ -30,7 +30,7 @@ async def task2():
         time.sleep(0.5)  # Delay for 500ms
         led.value(0)  # Turn off the LED
         time.sleep(0.5)  # Delay for 500ms
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
 
 async def main():
     await asyncio.gather(task1(), task2())
