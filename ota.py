@@ -107,8 +107,12 @@ class OTAUpdater:
         try:
             print(f"Checking for latest version at {self.version_url}...")
 
+            headers = {
+            'Cache-Control': 'no-cache',  # Ensure no cached response is used
+            }
+
             # Send GET request to fetch version information
-            response = urequests.get(self.version_url)
+            response = urequests.get(self.version_url, headers=headers)
             if response.status_code == 200:
                 data = response.json()
                 fetched_version = int(data.get('version', -1))
