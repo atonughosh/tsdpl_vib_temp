@@ -95,8 +95,8 @@ class OTAUpdater:
 
     import time
 
-    async def check_for_updates(self, max_retries=3, delay=65):
-        """ Check if updates are available with retry on all errors. """
+    async def check_for_updates(self):
+        """ Check if updates are available, without retry logic, only handling exceptions. """
         self.connect_wifi()
 
         gc.collect()
@@ -104,55 +104,37 @@ class OTAUpdater:
         latest_version = self.current_version
         newer_version_available = False
 
-        attempt = 0
-        while attempt < max_retries:
-            print(f"Checking for latest version... on {self.version_url}")
-            
-            try:
-                headers = {
-                'Cache-Control': 'no-cache',  # Ensure no cached response is used
-                }
-                # Send GET request to fetch version information
-                response = urequests.get(self.version_url)
-                if response.status_code == 200:
-                    data = response.json()
-                    fetched_version = int(data.get('version', -1))
-                    print(f"Fetched version from server: {fetched_version}")
+        try:
+            print(f"Checking for latest version at {self.version_url}...")
 
-                    if fetched_version != -1:
-                        # Check if the fetched version is newer than the current version
-                        self.latest_version = fetched_version
-                        newer_version_available = self.current_version < self.latest_version
-                        print(f'Newer version available: {newer_version_available}')
+            # Send GET request to fetch version information
+            response = urequests.get(self.version_url)
+            if response.status_code == 200:
+                data = response.json()
+                fetched_version = int(data.get('version', -1))
+                print(f"Fetched version from server: {fetched_version}")
 
-                        if newer_version_available:
-                            break  # Exit early if a newer version is found
-                    else:
-                        print("Failed to retrieve valid version data.")
+                if fetched_version != -1:
+                    # Check if the fetched version is newer than the current version
+                    self.latest_version = fetched_version
+                    newer_version_available = self.current_version < self.latest_version
+                    print(f'Newer version available: {newer_version_available}')
 
+                    if newer_version_available:
+                        return True  # New version available, return True
                 else:
-                    print(f"Unexpected response status: {response.status_code}")
+                    print("Failed to retrieve valid version data.")
+            else:
+                print(f"Unexpected response status: {response.status_code}")
 
-            except Exception as e:
-                # Handle any error (connection issues, timeouts, etc.)
-                print(f"Error checking for updates (Attempt {attempt + 1}): {e}")
-                await asyncio.sleep(delay)  # Small delay before retrying
+        except Exception as e:
+            # Handle any error (connection issues, timeouts, etc.)
+            print(f"Error checking for updates: {e}")
 
-            finally:
-                # Clean up response and memory
-                try:
-                    response.close()
-                except:
-                    pass
-                del response
-                gc.collect()
+        finally:
+            gc.collect()
 
-            # Increment attempt and add a small delay between retries
-            attempt += 1
-            print(f"Retrying... ({attempt}/{max_retries})")
-            await asyncio.sleep(delay)
-
-        return newer_version_available
+        return newer_version_available  # Return False if no update is found
 
 
     def download_and_install_update_if_available(self):
