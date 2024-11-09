@@ -1,4 +1,4 @@
-#this is version number 3
+#this is version number 4
 #Do NOT update following lines
 NODE_ID = 1
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
