@@ -1,6 +1,6 @@
 # main.py
 
-# This is version number 9
+# This is version number 10
 # Do NOT update following lines
 NODE_ID = 1
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
