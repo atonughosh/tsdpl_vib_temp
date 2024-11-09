@@ -1,4 +1,4 @@
-#this is version number 2
+#this is version number 3
 #Do NOT update following lines
 NODE_ID = 1
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
@@ -27,10 +27,10 @@ async def task1():
 async def task2():
     while True:
         led.value(1)  # Turn on the LED
-        time.sleep(2)  # Delay for 500ms
+        time.sleep(0.5)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        time.sleep(2)  # Delay for 500ms
-        await asyncio.sleep(2)
+        time.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)
 
 async def main():
     await asyncio.gather(task1(), task2())
