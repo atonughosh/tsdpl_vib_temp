@@ -95,7 +95,7 @@ class OTAUpdater:
 
     import time
 
-    async def check_for_updates(self, max_retries=3, delay=10):
+    async def check_for_updates(self, max_retries=3, delay=65):
         """ Check if updates are available with retry on all errors. """
         self.connect_wifi()
 
@@ -163,3 +163,5 @@ class OTAUpdater:
                 self.update_and_reset()
         else:
             print('No new updates available.')
+
+
