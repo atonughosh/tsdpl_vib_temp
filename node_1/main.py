@@ -1,7 +1,7 @@
 # main.py
 import machine
 machine.freq(240000000)
-# This is version number 18
+# This is version number 19
 # Do NOT update following lines
 NODE_ID = 1
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
