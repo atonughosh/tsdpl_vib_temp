@@ -60,6 +60,7 @@ class OTAUpdater:
 
         try:
             print("Connecting to WiFi...")
+            time.sleep(10)
             sta_if.connect(self.ssid, self.password)
 
             # Wait for the connection with a timeout
