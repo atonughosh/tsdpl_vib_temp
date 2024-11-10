@@ -1,7 +1,7 @@
 # main.py
 import machine
 machine.freq(240000000)
-# This is version number 1
+# This is version number 24
 # Do NOT update following lines
 NODE_ID = 2
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
@@ -82,21 +82,84 @@ import uasyncio as asyncio
 from machine import Pin
 import time
 import gc
+from umqtt.simple import MQTTClient
+
+
+# Set up the MQTT broker details
+BROKER = "13.232.192.17"  # AWS Mosquitto broker endpoint
+PORT = 1883  # Standard MQTT port
+TOPIC = "esp32/data"  # Topic to publish to
 
 # Set up pin for the LED
 led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 
-async def task1():
+# Function to connect to MQTT broker
+def connect_mqtt():
+    client = MQTTClient("esp32_client", BROKER, port=PORT)
+    client.connect()
+    print("Connected to MQTT broker")
+    return client
+
+# Function to connect to MQTT broker with error handling
+def connect_mqtt():
+    client = MQTTClient("esp32_client", BROKER, port=PORT)
+    try:
+        client.connect()
+        print("Connected to MQTT broker")
+        return client
+    except Exception as e:
+        print(f"Failed to connect to MQTT broker: {e}")
+        return None
+
+# Function to publish data to MQTT broker
+def publish_data(client, data):
+    try:
+        client.publish(TOPIC, data)
+        print(f"Published data: {data}")
+    except Exception as e:
+        print(f"Error publishing data: {e}")
+
+
+async def mqtt_publish_task():
+    client = None
+    while True:
+        # Attempt to connect to MQTT broker
+        while client is None:
+            print("Attempting to connect to MQTT broker...")
+            client = connect_mqtt()
+            if client is None:
+                print("Failed to connect. Retrying in 5 seconds...")
+                await asyncio.sleep(5)  # Retry connection after 5 seconds
+        
+        # Once connected, publish data
+        try:
+            # Publish dummy data (replace this with actual sensor data)
+            publish_data(client, "Hello from ESP32")
+            await asyncio.sleep(5)  # Publish data every 2 minutes
+        except Exception as e:
+            print(f"Error in MQTT publishing: {e}")
+            client.disconnect()  # Disconnect if error occurs
+            client = None  # Reset client to None so it reconnects
+            await asyncio.sleep(5)  # Retry connection after 5 seconds
+
+async def ota_task():
     while True:
         gc.collect()
-        from ota import OTAUpdater
+        #from ota import OTAUpdater
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
         # Await the async method download_and_install_update_if_available
-        await ota_updater.download_and_install_update_if_available()  # Await this async function
+        #await ota_updater.download_and_install_update_if_available()  # Await this async function
+        # Check if an update is available
+        if await ota_updater.check_for_updates():
+            # If there's a new version, perform the update
+            ota_updater.update_and_reset()
+        else:
+            print("No update available.")
+            
         gc.collect()
         await asyncio.sleep(120)  # Allow the loop to yield control for a while
 
-async def task2():
+async def led_blink_task():
     while True:
         led.value(1)  # Turn on the LED
         await asyncio.sleep(1)  # Delay for 500ms
@@ -105,7 +168,7 @@ async def task2():
         await asyncio.sleep(1)  # Additional delay before repeating the task
 
 async def main():
-    await asyncio.gather(task1(), task2())  # Run both tasks concurrently
+    await asyncio.gather(mqtt_publish_task(), ota_task(), led_blink_task())  # Run both tasks concurrently
 
 # Start the main event loop
 asyncio.run(main())  # This will start the asynchronous loop
