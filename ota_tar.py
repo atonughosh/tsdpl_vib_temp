@@ -52,7 +52,7 @@ class OTAUpdater:
         if sta_if.isconnected():
             current_ssid = sta_if.config('essid')
             if current_ssid == self.ssid:
-                print(f"Already connected to {self.ssid}. Skipping connection.")
+                print(f"Already connected to {self.ssid}. Skipping reconnection.")
                 print(f'IP is: {sta_if.ifconfig()[0]}')
                 return  True# Skip connection if already connected to the desired SSID
             else:
@@ -81,18 +81,6 @@ class OTAUpdater:
             print("Rebooting the device to attempt reconnection...")
             time.sleep(30)
             machine.reset()  # Reboot ESP32 if Wi-Fi connection fails
-
-    """def fetch_latest_code(self) -> bool:
-        #Fetch the latest code from the repo, returns False if not found.
-        response = urequests.get(self.firmware_url)
-        if response.status_code == 200:
-            print(f'Fetched latest firmware code, status: {response.status_code}')
-            # Save the fetched code to memory
-            self.latest_code = response.text
-            return True
-        elif response.status_code == 404:
-            print(f'Firmware not found - {self.firmware_url}.')
-            return False"""
     
     def fetch_firmware(self):
         """Download the firmware.tar.gz file."""
@@ -148,36 +136,6 @@ class OTAUpdater:
         except Exception as e:
             print(f"Error extracting firmware: {e}")
 
-
-
-    """def update_no_reset(self):
-         #Update the code without resetting the device.
-        # Save the fetched code and update the version file to the latest version.
-        with open('latest_code.py', 'w') as f:
-            f.write(self.latest_code)
-
-        # Update the version in memory
-        self.current_version = self.latest_version  # Use latest_version, as it is now correctly set
-
-        # Save the current version to version.json
-        version_file_path = '/version.json'
-        with open(version_file_path, 'w') as f:
-            json.dump({'version': self.current_version}, f)
-
-        # Free up some memory
-        self.latest_code = None"""
-
-    """def update_and_reset(self):
-        #Update the code and reset the device.
-        print(f"Updating device... (Renaming latest_code.py to {self.filename})", end="")
-        
-        # Overwrite the old code with the updated one
-        os.rename('latest_code.py', self.filename)
-
-        # Restart the device to run the new code.
-        print('Restarting device...')
-        machine.reset()  # Reset the device to run the new code.
-"""
     def update_version_file(self):
         """Update the version.json file on the ESP32."""
         try:
