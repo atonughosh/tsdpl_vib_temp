@@ -77,6 +77,7 @@ class OTAUpdater:
         except OSError as e:
             print(f"Error during Wi-Fi connection: {e}")
             print("Rebooting the device to attempt reconnection...")
+            time.sleep(30)
             machine.reset()  # Reboot ESP32 if Wi-Fi connection fails
 
     def fetch_latest_code(self) -> bool:
@@ -122,7 +123,7 @@ class OTAUpdater:
     async def check_for_updates(self):
         """ Check if updates are available, without retry logic, only handling exceptions. """
         self.connect_wifi()
-
+        await asyncio.sleep(30)
         gc.collect()
 
         latest_version = self.current_version
