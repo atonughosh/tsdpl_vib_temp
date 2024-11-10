@@ -167,9 +167,9 @@ async def ota_task():
 async def led_blink_task():
     while True:
         led.value(1)  # Turn on the LED
-        await asyncio.sleep(1)  # Delay for 500ms
+        await asyncio.sleep(0.5)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        await asyncio.sleep(1)  # Delay for 500ms
+        await asyncio.sleep(0.5)  # Delay for 500ms
         await asyncio.sleep(1)  # Additional delay before repeating the task
 
 async def main():
