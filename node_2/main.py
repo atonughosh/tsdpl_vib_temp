@@ -43,12 +43,16 @@ NODE_ID = "2"
 gc.collect()
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
 
-async def check_and_install_update():
+async def boot_time_ota():
     try:
-        # Initialize OTAUpdater
         ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
-        # Await the update check and installation
-        await ota_updater.download_and_install_update_if_available()
+        
+        # Check if an update is available
+        if await ota_updater.check_for_updates():
+            # If there's a new version, perform the update
+            ota_updater.update_and_reset()
+        else:
+            print("No update available.")
     except:
         print(f"Error during OTA update")
 
@@ -56,7 +60,7 @@ async def check_and_install_update():
 # Start the async update process
 async def boot():
     gc.collect()
-    await check_and_install_update()  # Await the update process
+    await boot_time_ota()  # Await the update process
 
 # Execute the boot process using uasyncio
 asyncio.run(boot())
@@ -78,6 +82,7 @@ from WIFI_CONFIG import SSID, PASSWORD
 
 # Update below this
 
+from ota import OTAUpdater
 import uasyncio as asyncio
 from machine import Pin
 import time
