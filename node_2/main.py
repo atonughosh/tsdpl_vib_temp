@@ -122,7 +122,7 @@ PORT = 1883  # Standard MQTT port
 TOPIC = "esp32/data"  # Topic to publish to
 
 # Function to connect to MQTT broker with error handling
-def connect_mqtt():
+async def connect_mqtt():
     client = MQTTClient("esp32_client", BROKER, port=PORT, keepalive=60)
     try:
         client.connect()
@@ -132,26 +132,26 @@ def connect_mqtt():
         print(f"Failed to connect to MQTT broker: {e}")
         return None
 
-def publish_data(client, data):
+async def publish_data(client, data):
     try:
         # Check if the client or socket is disconnected
-        if client is None or client.sock is None:
+        if client is None:
             print("Client is disconnected. Attempting to reconnect...")
-            client = connect_mqtt()  # Attempt to reconnect
+            client = await connect_mqtt()  # Attempt to reconnect
             if client is None:
                 print("Failed to reconnect. Will retry on next cycle.")
-                return client  # Return the client to the caller, no publishing done
+                return client  # Return client if data was successfully published
 
         # Only attempt to publish if the client is connected
         client.publish(TOPIC, data)
         print(f"Published data: {data}")
+        await asyncio.sleep(0) # Yield control to allow other tasks to run
         return client  # Return client if data was successfully published
 
     except Exception as e:
         print(f"Error publishing data: {e}")
-        time.sleep(2)  # Short delay before trying again
-        client = None
-        return client  # Return the client for retry logic
+        await asyncio.sleep(2)  # Short delay before trying agai
+        return None  # Return the client for retry logic
 
 # Asynchronous function to read temperature
 async def read_temperature():
@@ -169,9 +169,9 @@ async def temperature_task():
     client = None
 
     while True:
-        if client is None or not client.sock:
+        if client is None:
             print("Attempting to connect to MQTT broker...")
-            client = connect_mqtt()
+            client = await connect_mqtt()
             if client is None:
                 print("Failed to connect to MQTT broker. Retrying in 5 seconds...")
                 await asyncio.sleep(5)
@@ -181,13 +181,14 @@ async def temperature_task():
             # Read temperature and format for MQTT
             temperature = await read_temperature()
             data = f"Temperature: {temperature:.2f} C"
-            client = publish_data(client, data)  # Update client if reconnection happens
+            client = await publish_data(client, data)  # Update client if reconnection happens
             await asyncio.sleep(10)  # Delay between readings
 
         except OSError as e:
             print(f"Error in temperature task/MQTT publishing: {e}")
             # Attempt to disconnect and reconnect
-            client.disconnect()  # Disconnect on error
+            if client:
+                client.disconnect()  # Disconnect on error
             client = None  # Reset client to force reconnection
             await asyncio.sleep(5)
 
