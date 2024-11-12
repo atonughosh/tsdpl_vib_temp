@@ -84,30 +84,46 @@ from WIFI_CONFIG import SSID, PASSWORD
 
 from ota import OTAUpdater
 import uasyncio as asyncio
-from machine import Pin
+from machine import SPI, Pin
 import time
 import gc
 from umqtt.simple import MQTTClient
+import max31865
 
+# Constants for your RTD sensor
+RTD_NOMINAL = 100.0       # Resistance of RTD at 0°C
+RTD_REFERENCE = 402.0     # Reference resistor on the PCB
+RTD_WIRES = 3             # 3-wire configuration
+
+# SPI setup specific to your configuration
+sck = machine.Pin(18, machine.Pin.OUT)
+mosi = machine.Pin(23, machine.Pin.OUT)
+miso = machine.Pin(19, machine.Pin.IN)
+spi = machine.SPI(baudrate=50000, sck=sck, mosi=mosi, miso=miso, polarity=0, phase=1)
+
+# Chip select setup for the sensor
+cs1 = machine.Pin(5, machine.Pin.OUT, value=1)
+css = [cs1]
+
+# Initialize the MAX31865 sensor
+sensors = [
+    max31865.MAX31865(
+        spi, cs, wires=RTD_WIRES, rtd_nominal=RTD_NOMINAL, ref_resistor=RTD_REFERENCE
+    )
+    for cs in css
+]
+
+# Set up pin for the LED
+led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 
 # Set up the MQTT broker details
 BROKER = "13.232.192.17"  # AWS Mosquitto broker endpoint
 PORT = 1883  # Standard MQTT port
 TOPIC = "esp32/data"  # Topic to publish to
 
-# Set up pin for the LED
-led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
-
-# Function to connect to MQTT broker
-def connect_mqtt():
-    client = MQTTClient("esp32_client", BROKER, port=PORT)
-    client.connect()
-    print("Connected to MQTT broker")
-    return client
-
 # Function to connect to MQTT broker with error handling
 def connect_mqtt():
-    client = MQTTClient("esp32_client", BROKER, port=PORT)
+    client = MQTTClient("esp32_client", BROKER, port=PORT, keepalive=60)
     try:
         client.connect()
         print("Connected to MQTT broker")
@@ -119,33 +135,59 @@ def connect_mqtt():
 # Function to publish data to MQTT broker
 def publish_data(client, data):
     try:
+        if client is None or client.sock is None:
+            print("Client is disconnected. Attempting to reconnect...")
+            client = connect_mqtt()  # Attempt to reconnect
+            if client is None:
+                print("Failed to reconnect. Will retry on next cycle.")
+                return  # Don't try to publish until a connection is established
+
+        # Only attempt to publish if the client is connected
         client.publish(TOPIC, data)
         print(f"Published data: {data}")
+
     except Exception as e:
         print(f"Error publishing data: {e}")
+        client = None  # Reset client on error
+        time.sleep(2)  # Short delay before trying again
 
+# Asynchronous function to read temperature
+async def read_temperature():
+    """Asynchronously read temperature from MAX31865 sensor."""
+    # Simulate asynchronous I/O (no real delay needed here, just yielding control)
+    await asyncio.sleep(0)  # Yield control to allow other tasks to run
+    
+    # Read temperature from the sensor
+    temperature = [sensor.temperature for sensor in sensors]
+    
+    return float(temperature[0])  # Return temperature as a float
 
-async def mqtt_publish_task():
+# Asynchronous task to publish temperature to MQTT
+async def temperature_task():
     client = None
+
     while True:
-        # Attempt to connect to MQTT broker
-        while client is None:
+        if client is None or not client.sock:
             print("Attempting to connect to MQTT broker...")
             client = connect_mqtt()
             if client is None:
-                print("Failed to connect. Retrying in 5 seconds...")
-                await asyncio.sleep(5)  # Retry connection after 5 seconds
-        
-        # Once connected, publish data
+                print("Failed to connect to MQTT broker. Retrying in 5 seconds...")
+                await asyncio.sleep(5)
+                continue
+
         try:
-            # Publish dummy data (replace this with actual sensor data)
-            publish_data(client, "Hello from ESP32")
-            await asyncio.sleep(5)  # Publish data every 2 minutes
-        except Exception as e:
-            print(f"Error in MQTT publishing: {e}")
-            client.disconnect()  # Disconnect if error occurs
-            client = None  # Reset client to None so it reconnects
-            await asyncio.sleep(5)  # Retry connection after 5 seconds
+            # Read temperature and format for MQTT
+            temperature = await read_temperature()
+            data = f"Temperature: {temperature:.2f} C"
+            publish_data(client, data)
+            #print(f"Published temperature data: {data}")
+            await asyncio.sleep(10)  # Delay between readings
+
+        except OSError as e:
+            print(f"Error in temperature task/MQTT publishing: {e}")
+            client.disconnect()  # Disconnect on error
+            client = None  # Reset client to force reconnection
+            await asyncio.sleep(5)
 
 async def ota_task():
     while True:
@@ -167,13 +209,13 @@ async def ota_task():
 async def led_blink_task():
     while True:
         led.value(1)  # Turn on the LED
-        await asyncio.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)  # Delay for 500ms
         led.value(0)  # Turn off the LED
-        await asyncio.sleep(0.5)  # Delay for 500ms
+        await asyncio.sleep(1)  # Delay for 500ms
         await asyncio.sleep(1)  # Additional delay before repeating the task
 
 async def main():
-    await asyncio.gather(mqtt_publish_task(), ota_task(), led_blink_task())  # Run both tasks concurrently
+    await asyncio.gather(ota_task(), led_blink_task(), temperature_task())  # Run both tasks concurrently
 
 # Start the main event loop
 asyncio.run(main())  # This will start the asynchronous loop
