@@ -132,24 +132,26 @@ def connect_mqtt():
         print(f"Failed to connect to MQTT broker: {e}")
         return None
 
-# Function to publish data to MQTT broker
 def publish_data(client, data):
     try:
+        # Check if the client or socket is disconnected
         if client is None or client.sock is None:
             print("Client is disconnected. Attempting to reconnect...")
             client = connect_mqtt()  # Attempt to reconnect
             if client is None:
                 print("Failed to reconnect. Will retry on next cycle.")
-                return  # Don't try to publish until a connection is established
+                return client  # Return the client to the caller, no publishing done
 
         # Only attempt to publish if the client is connected
         client.publish(TOPIC, data)
         print(f"Published data: {data}")
+        return client  # Return client if data was successfully published
 
     except Exception as e:
         print(f"Error publishing data: {e}")
-        client = None  # Reset client on error
         time.sleep(2)  # Short delay before trying again
+        client = None
+        return client  # Return the client for retry logic
 
 # Asynchronous function to read temperature
 async def read_temperature():
@@ -179,12 +181,12 @@ async def temperature_task():
             # Read temperature and format for MQTT
             temperature = await read_temperature()
             data = f"Temperature: {temperature:.2f} C"
-            publish_data(client, data)
-            #print(f"Published temperature data: {data}")
+            client = publish_data(client, data)  # Update client if reconnection happens
             await asyncio.sleep(10)  # Delay between readings
 
         except OSError as e:
             print(f"Error in temperature task/MQTT publishing: {e}")
+            # Attempt to disconnect and reconnect
             client.disconnect()  # Disconnect on error
             client = None  # Reset client to force reconnection
             await asyncio.sleep(5)
