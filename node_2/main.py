@@ -89,6 +89,7 @@ import time
 import gc
 from umqtt.simple import MQTTClient
 import max31865
+import json
 
 # Constants for your RTD sensor
 RTD_NOMINAL = 100.0       # Resistance of RTD at 0°C
@@ -120,6 +121,18 @@ led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 BROKER = "13.232.192.17"  # AWS Mosquitto broker endpoint
 PORT = 1883  # Standard MQTT port
 TOPIC = "esp32/data"  # Topic to publish to
+
+# Asynchronous function to read firmware version from version.json
+async def get_firmware_version():
+    try:
+        with open("version.json", "r") as f:
+            print("Opened version.json successfully")  # Debugging line
+            version_data = json.load(f)
+            print("Loaded JSON data:", version_data)  # Debugging line
+            return version_data.get("version", "unknown")
+    except Exception as e:
+        print(f"Failed to read version file: {e}")
+        return "unknown"
 
 # Function to connect to MQTT broker with error handling
 async def connect_mqtt():
@@ -167,6 +180,7 @@ async def read_temperature():
 # Asynchronous task to publish temperature to MQTT
 async def temperature_task():
     client = None
+    firmware_version = await get_firmware_version()  # Get firmware version once
 
     while True:
         if client is None:
@@ -180,7 +194,7 @@ async def temperature_task():
         try:
             # Read temperature and format for MQTT
             temperature = await read_temperature()
-            data = f"Temperature: {temperature:.2f} C"
+            data = f"Firmware Version: {firmware_version}, Temperature: {temperature:.2f} C"
             client = await publish_data(client, data)  # Update client if reconnection happens
             await asyncio.sleep(10)  # Delay between readings
 
