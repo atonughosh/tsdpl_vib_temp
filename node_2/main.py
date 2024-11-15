@@ -84,7 +84,7 @@ from WIFI_CONFIG import SSID, PASSWORD
 
 from ota import OTAUpdater
 import uasyncio as asyncio
-from machine import SPI, Pin
+from machine import SPI, Pin, I2C
 import time
 import gc
 from umqtt.simple import MQTTClient
@@ -121,6 +121,11 @@ led = Pin(2, Pin.OUT)  # Most ESP32 boards have an onboard LED on GPIO 2
 BROKER = "13.232.192.17"  # AWS Mosquitto broker endpoint
 PORT = 1883  # Standard MQTT port
 TOPIC = "esp32/data"  # Topic to publish to
+
+# I2C setup for communication with MPU6050
+scl_pin = machine.Pin(22)  # Set the SCL pin (clock line)
+sda_pin = machine.Pin(21)  # Set the SDA pin (data line)
+i2c = I2C(0, scl=scl_pin, sda=sda_pin, freq=400000)  # Initialize I2C with high frequency
 
 # Asynchronous function to read firmware version from version.json
 async def get_firmware_version():
@@ -166,6 +171,91 @@ async def publish_data(client, data):
         await asyncio.sleep(2)  # Short delay before trying agai
         return None  # Return the client for retry logic
 
+###############
+
+# Function to calculate RMS from a list of 100 readings
+def calculate_rms_multiple(readings):
+    squared_sum = sum([reading ** 2 for reading in readings])
+    return (squared_sum / len(readings)) ** 0.5
+
+# Function to read multiple accelerometer data (100 samples)
+async def read_multiple_accel(i2c, num_samples=100):
+    ax_readings = []
+    ay_readings = []
+    az_readings = []
+
+    for _ in range(num_samples):
+        ax, ay, az = await read_accel(i2c)
+        if ax is not None and ay is not None and az is not None:
+            ax_readings.append(ax)
+            ay_readings.append(ay)
+            az_readings.append(az)
+        else:
+            print("Error reading accelerometer data.")
+        await asyncio.sleep(0)  # Yield control to allow other tasks to run
+
+    # Calculate RMS for each axis from the collected readings
+    rms_accel_x = calculate_rms_multiple(ax_readings)
+    rms_accel_y = calculate_rms_multiple(ay_readings)
+    rms_accel_z = calculate_rms_multiple(az_readings)
+
+    return rms_accel_x, rms_accel_y, rms_accel_z
+
+# Function to read accelerometer data from MPU6050
+async def read_accel(i2c):
+    try:
+        ax = await read_i2c_word(i2c, 0x3B)
+        ay = await read_i2c_word(i2c, 0x3D)
+        az = await read_i2c_word(i2c, 0x3F)
+
+        # If any reading fails, return 0.0 as default
+        if ax is None or ay is None or az is None:
+            print("Error: Failed to read accelerometer data, using default values (0.0).")
+            return 0.0, 0.0, 0.0
+
+        return ax, ay, az
+    except Exception as e:
+        print(f"Error reading accelerometer: {e}")
+        return 0.0, 0.0, 0.0  # Default values in case of exception
+
+# Function to read I2C word from MPU6050
+async def read_i2c_word(i2c, register):
+    try:
+        data = i2c.readfrom_mem(0x68, register, 2)
+        value = (data[0] << 8) | data[1]
+        if value >= 0x8000:
+            value -= 0x10000
+        return value
+    except Exception as e:
+        print(f"Error reading I2C word: {e}")
+        return None
+
+# Function to handle sensor errors and attempt reinitialization
+async def handle_sensor_error(i2c):
+    print("Sensor error detected, reinitializing MPU6050...")
+    retries = 0
+    while retries < 5:
+        if await initialize_mpu6050(i2c):
+            print("MPU6050 reinitialized successfully")
+            return True
+        retries += 1
+        print(f"Retrying... attempt {retries}")
+        await asyncio.sleep(2)  # Non-blocking sleep between retries
+    print("Failed to reinitialize MPU6050 after multiple attempts.")
+    return False
+
+# Function to initialize the MPU6050 sensor
+async def initialize_mpu6050(i2c):
+    try:
+        i2c.writeto(0x68, bytearray([0x6B, 0]))  # Wake up the MPU6050
+        print("MPU6050 initialized successfully")
+        return True
+    except Exception as e:
+        print(f"MPU6050 Initialization Error: {e}")
+        return False
+    
+##################
+
 # Asynchronous function to read temperature
 async def read_temperature():
     """Asynchronously read temperature from MAX31865 sensor."""
@@ -192,11 +282,21 @@ async def temperature_task():
                 continue
 
         try:
-            # Read temperature and format for MQTT
+            # 1. Read 100 accelerometer data points (ax, ay, az)
+            rms_accel_x, rms_accel_y, rms_accel_z = await read_multiple_accel(i2c)
+
+            # 2. Read temperature asynchronously
             temperature = await read_temperature()
-            data = f"Firmware Version: {firmware_version}, Temperature: {temperature:.2f} C"
-            client = await publish_data(client, data)  # Update client if reconnection happens
-            await asyncio.sleep(10)  # Delay between readings
+            
+            # 3. Prepare the data to be published (RMS values for each axis, temperature, version)
+            data = f"AccX RMS: {rms_accel_x:.2f}, AccY RMS: {rms_accel_y:.2f}, AccZ RMS: {rms_accel_z:.2f}, Temp: {temperature:.2f}C, Firmware Version: {firmware_version}"
+
+            # 4. Prepare the data to be published (RMS values for each axis, temperature, version)
+            data = f"AccX RMS: {rms_accel_x:.2f}, AccY RMS: {rms_accel_y:.2f}, AccZ RMS: {rms_accel_z:.2f}, Temp: {temperature:.2f}C, Firmware Version: {firmware_version}"
+            
+            # Attempt to publish the data
+            client = await publish_data(client, data)
+            await asyncio.sleep(5)  # Adjust the sleep time as necessary
 
         except OSError as e:
             print(f"Error in temperature task/MQTT publishing: {e}")
@@ -205,7 +305,7 @@ async def temperature_task():
                 client.disconnect()  # Disconnect on error
             client = None  # Reset client to force reconnection
             await asyncio.sleep(5)
-
+            
 async def ota_task():
     while True:
         gc.collect()
