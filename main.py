@@ -1,7 +1,7 @@
 # main.py
 import machine
 machine.freq(240000000)
-# This is version number 8
+# This is version number 24
 # Do NOT update following lines
 NODE_ID = 2
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
@@ -130,6 +130,7 @@ i2c = I2C(0, scl=scl_pin, sda=sda_pin, freq=400000)  # Initialize I2C with high 
 # Asynchronous function to read firmware version from version.json
 async def get_firmware_version():
     try:
+        gc.collect()
         with open("version.json", "r") as f:
             print("Opened version.json successfully")  # Debugging line
             version_data = json.load(f)
