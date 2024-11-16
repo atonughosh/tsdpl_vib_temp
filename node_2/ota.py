@@ -27,7 +27,7 @@ class OTAUpdater:
         # Use the node-specific folder in the repo URL
         self.version_url = self.repo_url + f'/main/node_{self.node_id}/version.json'
         print(f"Version URL is: {self.version_url}")
-        self.firmware_url = self.repo_url + f'/main/node_{self.node_id}/firmware.tar'
+        self.firmware_url = self.repo_url + f'/main/node_{self.node_id}/Firmware.tar'
 
         # Get the current version (stored in version.json) for the specific node
         self.version_file_path = '/version.json'
