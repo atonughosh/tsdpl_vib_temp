@@ -247,10 +247,10 @@ async def calculate_rms(i2c, offsets, num_samples=1000):
     return ax_rms, ay_rms, az_rms
 
 async def calibrate_mpu6050(i2c):
-    gc.collect()
-    num_samples = 1000
+    num_samples = 2000
     ax_offset, ay_offset, az_offset = 0, 0, 0
-
+    gc.collect()
+    
     for _ in range(num_samples):
         try:
             ax = await read_i2c_word(i2c, 0x3B)
@@ -269,7 +269,7 @@ async def calibrate_mpu6050(i2c):
 
     # Adjust for gravity on Z-axis
     az_offset -= 16384  # Assuming the device is stationary and Z is 1g.
-
+    gc.collect()
     return ax_offset, ay_offset, az_offset
 
 
