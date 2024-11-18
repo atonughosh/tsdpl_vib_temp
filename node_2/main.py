@@ -281,9 +281,9 @@ async def calibrate_mpu6050(i2c):
     
     for _ in range(num_samples):
         try:
-            ax = await read_i2c_word(i2c, 0x3B)
-            ay = await read_i2c_word(i2c, 0x3D)
-            az = await read_i2c_word(i2c, 0x3F)
+            ax = read_i2c_word(i2c, 0x3B)
+            ay = read_i2c_word(i2c, 0x3D)
+            az = read_i2c_word(i2c, 0x3F)
             ax_offset += ax
             ay_offset += ay
             az_offset += az
@@ -302,7 +302,7 @@ async def calibrate_mpu6050(i2c):
     return ax_offset, ay_offset, az_offset
 
 
-async def read_i2c_word(i2c, register):
+def read_i2c_word(i2c, register):
     try:
         data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
         value = (data[0] << 8) | data[1]
