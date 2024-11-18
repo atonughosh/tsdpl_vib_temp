@@ -153,7 +153,6 @@ async def initialize_mpu6050():
         # Wake up the MPU6050 as it starts in sleep mode
         i2c.writeto_mem(MPU6050_ADDR, PWR_MGMT_1, b'\x00')  # Write 0 to PWR_MGMT_1 to wake it up
         print("MPU6050 initialized successfully.")
-        offsets = await calibrate_mpu6050(i2c)
         return True
     except Exception as e:
         print(f"Failed to initialize MPU6050: {e}")
