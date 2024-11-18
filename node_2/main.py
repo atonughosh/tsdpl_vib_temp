@@ -114,8 +114,31 @@ create_boot_file()
 # Shared state for MPU6050 status
 mpu6050_initialized = False  # Tracks if MPU6050 is initialized
 
+OFFSET_FILE = "mpu6050_offsets.json"
+
 # Global variable for offsets
-offsets = (0, 0, 0)
+#offsets = (0, 0, 0)
+def save_offsets_to_file(offsets):
+    try:
+        with open(OFFSET_FILE, "w") as f:
+            json.dump({"ax_offset": offsets[0], "ay_offset": offsets[1], "az_offset": offsets[2]}, f)
+        print("Offsets saved to file.")
+    except Exception as e:
+        print(f"Error saving offsets to file: {e}")
+
+def load_offsets_from_file():
+    try:
+        with open(OFFSET_FILE, "r") as f:
+            data = json.load(f)
+            print("Offsets loaded from file.")
+            return data["ax_offset"], data["ay_offset"], data["az_offset"]
+    except Exception as e:
+        print(f"Error loading offsets from file: {e}")
+        return 0, 0, 0  # Default offsets if file is missing or corrupted
+
+# Global variable for offsets
+offsets = load_offsets_from_file()
+
 
 async def detect_mpu6050():
     try:
@@ -149,6 +172,12 @@ def on_message(topic, msg):
     if topic_str == REBOOT_TOPIC and msg_str == "reboot":
         print("Reboot command received. Rebooting device...")
         machine.reset()
+    
+    # Handle calibration command
+    elif topic_str == REBOOT_TOPIC and msg_str == "calibrate":
+        print("Calibration command received. Starting calibration...")
+        asyncio.create_task(trigger_calibration())
+
 
 # Asynchronous functions
 
@@ -286,21 +315,16 @@ async def read_temperature():
     except Exception as e:
         print(f"Error reading temperature: {e}")
         return None
-
-async def calibration_task():
+    
+async def trigger_calibration():
     global offsets
-    while True:
-        try:
-            if mpu6050_initialized:
-                print("Starting calibration...")
-                offsets = await calibrate_mpu6050(i2c)
-                print("Calibration complete.")
-            else:
-                print("MPU6050 not initialized, skipping calibration.")
-        except Exception as e:
-            print(f"Error during calibration: {e}")
-        await asyncio.sleep(7200)  # Sleep for 4 hours
-
+    try:
+        print("Calibrating MPU6050...")
+        offsets = await calibrate_mpu6050(i2c)  # Calibrate the sensor
+        save_offsets_to_file(offsets)          # Save offsets to file
+        print(f"Calibration complete: {offsets}")
+    except Exception as e:
+        print(f"Error during calibration: {e}")
 
 async def ota_task():
     retries = 0
