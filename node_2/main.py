@@ -8,6 +8,7 @@ import max31865
 from ota import OTAUpdater
 import gc
 import math
+import time
 
 # Constants
 RTD_NOMINAL = 100.0  # Resistance of RTD at 0°C
@@ -115,6 +116,9 @@ create_boot_file()
 mpu6050_initialized = False  # Tracks if MPU6050 is initialized
 
 OFFSET_FILE = "mpu6050_offsets.json"
+
+last_error_time = 0  # Global variable to track last error print time
+
 
 # Global variable for offsets
 #offsets = (0, 0, 0)
@@ -303,6 +307,7 @@ async def calibrate_mpu6050(i2c):
 
 
 def read_i2c_word(i2c, register):
+    global last_error_time
     try:
         data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
         value = (data[0] << 8) | data[1]
@@ -310,9 +315,11 @@ def read_i2c_word(i2c, register):
             value -= 0x10000
         return value
     except Exception as e:
-        print(f"Error reading I2C register {register}: {e}")
+        current_time = time.time()
+        if current_time - last_error_time > 10:  # 10 seconds
+            print(f"Error reading I2C register {register}: {e}")
+            last_error_time = current_time
         return 0  # Return a default value to prevent further errors
-
 
 async def read_temperature():
     try:
@@ -380,6 +387,10 @@ async def mpu6050_task():
                     await initialize_mpu6050()
                     mpu6050_initialized = True  # Mark as initialized
                     print("MPU6050 initialization successful.")
+                    
+                    # Reload offsets after reinitialization
+                    offsets = load_offsets_from_file()
+                    print(f"Offsets reloaded: {offsets}")
                 except Exception as e:
                     print(f"MPU6050 initialization failed: {e}")
                     mpu6050_initialized = False  # Reset on failure
