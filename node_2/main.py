@@ -348,7 +348,7 @@ async def ota_task():
             
             # Use asyncio timeout to avoid indefinite blocking
             try:
-                async with asyncio.timeout(180):  # 180 seconds timeout
+                async with asyncio.timeout(300):  # 180 seconds timeout
                     if await ota_updater.check_for_updates():
                         print("Update available. Starting download...")
                         ota_updater.update_and_reset()
