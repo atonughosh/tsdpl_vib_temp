@@ -159,7 +159,7 @@ async def get_firmware_version():
             return version_data.get("version", "unknown")
     except Exception as e:
         print(f"Failed to read version file: {e}")
-        return "unknown"
+        return "0"
 
 async def connect_mqtt():
     client = MQTTClient("esp32_client", BROKER, port=PORT, keepalive=60)
@@ -229,7 +229,7 @@ async def read_accel(i2c, offsets):
         print(f"Error reading accelerometer: {e}")
         return 0.0, 0.0, 0.0
     
-async def calculate_rms(i2c, offsets, num_samples=1000):
+async def calculate_rms(i2c, offsets, num_samples=2000):
     ax_squared, ay_squared, az_squared = 0, 0, 0
     
     gc.collect()
@@ -286,6 +286,21 @@ async def read_temperature():
     except Exception as e:
         print(f"Error reading temperature: {e}")
         return None
+
+async def calibration_task():
+    global offsets
+    while True:
+        try:
+            if mpu6050_initialized:
+                print("Starting calibration...")
+                offsets = await calibrate_mpu6050(i2c)
+                print("Calibration complete.")
+            else:
+                print("MPU6050 not initialized, skipping calibration.")
+        except Exception as e:
+            print(f"Error during calibration: {e}")
+        await asyncio.sleep(7200)  # Sleep for 4 hours
+
 
 async def ota_task():
     retries = 0
@@ -388,7 +403,7 @@ async def temperature_task():
             #client.check_msg()  # Ensure messages are handled
 
             # Delay before the next cycle
-            await asyncio.sleep(5)
+            await asyncio.sleep(2)
             
         except Exception as e:
             print(f"Error in temperature task: {e}")
@@ -405,7 +420,7 @@ async def temperature_task():
             await asyncio.sleep(5)  # Delay to avoid busy loop during errors
 
 async def main():
-    await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
+    await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task(), calibration_task())
 
 # Start the main loop
 asyncio.run(main())
