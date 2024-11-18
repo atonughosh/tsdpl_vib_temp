@@ -304,26 +304,37 @@ async def calibration_task():
 
 async def ota_task():
     retries = 0
-    while retries < 5:
+    max_retries = 5  # Maximum number of retries
+    while retries < max_retries:
         try:
+            print("Starting OTA process...")
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
-            if await ota_updater.check_for_updates():
-                ota_updater.update_and_reset()
-                return  # Exit if update is successful
-            else:
-                print("No update available.")
-            retries = 0
+            
+            # Use asyncio timeout to avoid indefinite blocking
+            try:
+                async with asyncio.timeout(300):  # 300 seconds timeout
+                    if await ota_updater.check_for_updates():
+                        print("Update available. Starting download...")
+                        ota_updater.update_and_reset()
+                        return  # Exit the loop if update is successful
+                    else:
+                        print("No update available.")
+                        retries = 0  # Reset retries if no update is found
+                        break  # Exit the loop if no update is available
+            except asyncio.TimeoutError:
+                print("OTA process timed out. Retrying...")
+                retries += 1
+
         except Exception as e:
             retries += 1
-            print(f"Error in OTA update: {e}. Retry {retries}/5")
+            print(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
+
+        # Cleanup and delay before retrying
         await asyncio.sleep(120)
 
-async def led_blink_task():
-    while True:
-        led.value(1)
-        await asyncio.sleep(1)
-        led.value(0)
-        await asyncio.sleep(1)
+    if retries >= max_retries:
+        print("Max retries reached. Skipping OTA update for now.")
+
 
 async def mpu6050_task():
     """
@@ -353,6 +364,16 @@ async def mpu6050_task():
 
         # Delay before next detection attempt
         await asyncio.sleep(5)
+
+
+async def led_blink_task():
+    while True:
+        led.value(1)  # Turn on the LED
+        await asyncio.sleep(1)  # Delay for 500ms
+        led.value(0)  # Turn off the LED
+        await asyncio.sleep(1)  # Delay for 500ms
+        await asyncio.sleep(1)  # Additional delay before repeating the task
+
 
 async def temperature_task():
     client = None
@@ -420,7 +441,7 @@ async def temperature_task():
             await asyncio.sleep(5)  # Delay to avoid busy loop during errors
 
 async def main():
-    await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task(), calibration_task())
+    await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
 
 # Start the main loop
 asyncio.run(main())
