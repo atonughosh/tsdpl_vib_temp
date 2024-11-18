@@ -249,9 +249,9 @@ async def check_mqtt_messages(client):
 async def read_accel(i2c, offsets):
     ax_offset, ay_offset, az_offset = offsets
     try:
-        ax = await read_i2c_word(i2c, 0x3B) - ax_offset
-        ay = await read_i2c_word(i2c, 0x3D) - ay_offset
-        az = await read_i2c_word(i2c, 0x3F) - az_offset
+        ax = read_i2c_word(i2c, 0x3B) - ax_offset
+        ay = read_i2c_word(i2c, 0x3D) - ay_offset
+        az = read_i2c_word(i2c, 0x3F) - az_offset
         return ax / 16384.0, ay / 16384.0, az / 16384.0
     except Exception as e:
         print(f"Error reading accelerometer: {e}")
@@ -301,7 +301,7 @@ async def calibrate_mpu6050(i2c):
     return ax_offset, ay_offset, az_offset
 
 
-async def read_i2c_word(i2c, register):
+def read_i2c_word(i2c, register):
     data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
     value = (data[0] << 8) | data[1]
     if value >= 0x8000:
@@ -335,7 +335,7 @@ async def ota_task():
             
             # Use asyncio timeout to avoid indefinite blocking
             try:
-                async with asyncio.timeout(300):  # 300 seconds timeout
+                async with asyncio.timeout(180):  # 180 seconds timeout
                     if await ota_updater.check_for_updates():
                         print("Update available. Starting download...")
                         ota_updater.update_and_reset()
@@ -463,8 +463,18 @@ async def temperature_task():
                 await asyncio.sleep(5)  # Delay to avoid busy loop during errors
             await asyncio.sleep(5)  # Delay to avoid busy loop during errors
 
+#async def main():
+    #await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
+
 async def main():
-    await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
+    # Run independent tasks
+    tasks = [
+        asyncio.create_task(ota_task()),
+        asyncio.create_task(led_blink_task()),
+        asyncio.create_task(mpu6050_task()),
+        asyncio.create_task(temperature_task())
+    ]
+    await asyncio.gather(*tasks)
 
 # Start the main loop
 asyncio.run(main())
