@@ -289,7 +289,8 @@ async def calibrate_mpu6050(i2c):
             az_offset += az
             gc.collect()
         except Exception as e:
-            print(f"Calibration error: {e}")
+            print(f"Calibration error: {str(e)}")  # Use `str()` to safely convert the exception to a string
+            ax, ay, az = 0, 0, 0  # Use default values for this sample
     
     ax_offset /= num_samples
     ay_offset /= num_samples
@@ -301,12 +302,17 @@ async def calibrate_mpu6050(i2c):
     return ax_offset, ay_offset, az_offset
 
 
-def read_i2c_word(i2c, register):
-    data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
-    value = (data[0] << 8) | data[1]
-    if value >= 0x8000:
-        value -= 0x10000
-    return value
+async def read_i2c_word(i2c, register):
+    try:
+        data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
+        value = (data[0] << 8) | data[1]
+        if value >= 0x8000:
+            value -= 0x10000
+        return value
+    except Exception as e:
+        print(f"Error reading I2C register {register}: {e}")
+        return 0  # Return a default value to prevent further errors
+
 
 async def read_temperature():
     try:
