@@ -482,6 +482,14 @@ async def temperature_task():
 
 #async def main():
     #await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
+async def auto_reboot_task(interval_hours=12):
+    interval_seconds = interval_hours * 3600
+    while True:
+        print(f"Rebooting in {interval_hours} hours...")
+        await asyncio.sleep(interval_seconds)
+        print("Rebooting now...")
+        machine.reset()
+
 
 async def main():
     # Run independent tasks
@@ -489,7 +497,8 @@ async def main():
         asyncio.create_task(ota_task()),
         asyncio.create_task(led_blink_task()),
         asyncio.create_task(mpu6050_task()),
-        asyncio.create_task(temperature_task())
+        asyncio.create_task(temperature_task()),
+        asyncio.create_task(auto_reboot_task(12)),  # Auto-reboot every 12 hours
     ]
     await asyncio.gather(*tasks)
 
