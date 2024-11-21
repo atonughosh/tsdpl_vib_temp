@@ -272,39 +272,51 @@ async def trigger_calibration():
     except Exception as e:
         print(f"Error during calibration: {e}")
 
-async def ota_task():
-    retries = 0
-    max_retries = 5  # Maximum number of retries
-    while retries < max_retries:
+import sys
+import uasyncio as asyncio
+
+async def ota_task(interval_minutes):
+    """Runs the OTA task periodically."""
+    timeout_seconds = 300  # 5 minutes timeout for the entire OTA process
+    interval_seconds = interval_minutes * 60  # Convert minutes to seconds
+
+    while True:
         try:
-            gc.collect()  # Free memory before OTA process
             print("Starting OTA process...")
+            print(f"Free memory before OTA: {gc.mem_free()} bytes")
+            gc.collect()
+            print(f"Free memory after garbage collection: {gc.mem_free()} bytes")
+
+            # Initialize OTA updater
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
-            
-            # Use asyncio timeout to avoid indefinite blocking
-            try:
-                async with asyncio.timeout(300):  # 180 seconds timeout
-                    if await ota_updater.check_for_updates():
-                        print("Update available. Starting download...")
-                        ota_updater.update_and_reset()
-                        return  # Exit the loop if update is successful
-                    else:
-                        print("No update available.")
-                        retries = 0  # Reset retries if no update is found
-                        break  # Exit the loop if no update is available
-            except asyncio.TimeoutError:
-                print("OTA process timed out. Retrying...")
-                retries += 1
 
+
+            # Use wait_for to implement timeout
+            print("Checking for updates...")
+            if await asyncio.wait_for(ota_updater.check_for_updates(), timeout=timeout_seconds):
+                print("Update available. Starting download...")
+                await ota_updater.update_and_reset()  # Ensure this method is async
+            else:
+                print("No update available.")
+        except asyncio.TimeoutError:
+            print(f"OTA process timed out after {timeout_seconds} seconds.")
+        except MemoryError:
+            print("Memory error during OTA process. Attempting cleanup...")
+            gc.collect()
+            print(f"Free memory after cleanup: {gc.mem_free()} bytes")
+        except OSError as e:
+            print(f"Network or file error during OTA: {e}")
+            sys.print_exception(e)
+        except ValueError as e:
+            print(f"Value error during OTA: {e}. Possibly an invalid response or URL.")
+            sys.print_exception(e)
         except Exception as e:
-            retries += 1
-            print(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
-
-        # Cleanup and delay before retrying
-        await asyncio.sleep(120)
-
-    if retries >= max_retries:
-        print("Max retries reached. Skipping OTA update for now.")
+            print(f"Unexpected error in OTA update: {e}")
+            sys.print_exception(e)
+        finally:
+            print("OTA process completed or terminated.")
+            print(f"Waiting {interval_minutes} minutes before next OTA check...")
+            await asyncio.sleep(interval_seconds)  # Wait for the next interval
 
 
 async def mpu6050_task():
@@ -414,7 +426,7 @@ async def temperature_task():
 
 #async def main():
     #await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
-async def auto_reboot_task(interval_hours=12):
+async def auto_reboot_task(interval_hours):
     interval_seconds = interval_hours * 3600
     while True:
         print(f"Rebooting in {interval_hours} hours...")
@@ -427,10 +439,10 @@ async def main():
     gc.collect()
     # Run independent tasks
     tasks = [
-        asyncio.create_task(ota_task()),
+        asyncio.create_task(ota_task(interval_minutes=10)),
         asyncio.create_task(mpu6050_task()),
         asyncio.create_task(temperature_task()),
-        asyncio.create_task(auto_reboot_task(12)),  # Auto-reboot every 12 hours
+        asyncio.create_task(auto_reboot_task(4)),  # Auto-reboot every 4 hours
     ]
     await asyncio.gather(*tasks)
     gc.collect()
