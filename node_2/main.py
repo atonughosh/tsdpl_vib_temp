@@ -272,52 +272,37 @@ async def trigger_calibration():
     except Exception as e:
         print(f"Error during calibration: {e}")
 
-import sys
-import uasyncio as asyncio
-
-async def ota_task(interval_minutes):
-    """Runs the OTA task periodically."""
-    timeout_seconds = 300  # 5 minutes timeout for the entire OTA process
-    interval_seconds = interval_minutes * 60  # Convert minutes to seconds
-
+async def ota_task():
+    retries = 0
+    max_retries = 5  # Maximum number of retries for OTA
+    retry_interval = 120  # Retry interval in seconds
+    ota_check_interval = 3600  # Interval between OTA checks in seconds (1 hour)
+    
     while True:
         try:
-            print("Starting OTA process...")
-            print(f"Free memory before OTA: {gc.mem_free()} bytes")
             gc.collect()
-            print(f"Free memory after garbage collection: {gc.mem_free()} bytes")
-
-            # Initialize OTA updater
+            print("Starting OTA check...")
+            
             ota_updater = OTAUpdater(SSID, PASSWORD, firmware_url, "main.py", NODE_ID)
-
-
-            # Use wait_for to implement timeout
-            print("Checking for updates...")
-            if await asyncio.wait_for(ota_updater.check_for_updates(), timeout=timeout_seconds):
+            
+            # Check for updates
+            if await ota_updater.check_for_updates():
                 print("Update available. Starting download...")
-                await ota_updater.update_and_reset()  # Ensure this method is async
+                ota_updater.update_and_reset()
+                return  # Exit if update is successful
             else:
                 print("No update available.")
-        except asyncio.TimeoutError:
-            print(f"OTA process timed out after {timeout_seconds} seconds.")
-        except MemoryError:
-            print("Memory error during OTA process. Attempting cleanup...")
-            gc.collect()
-            print(f"Free memory after cleanup: {gc.mem_free()} bytes")
-        except OSError as e:
-            print(f"Network or file error during OTA: {e}")
-            sys.print_exception(e)
-        except ValueError as e:
-            print(f"Value error during OTA: {e}. Possibly an invalid response or URL.")
-            sys.print_exception(e)
+                retries = 0  # Reset retries on successful check
+            
         except Exception as e:
-            print(f"Unexpected error in OTA update: {e}")
-            sys.print_exception(e)
-        finally:
-            print("OTA process completed or terminated.")
-            print(f"Waiting {interval_minutes} minutes before next OTA check...")
-            await asyncio.sleep(interval_seconds)  # Wait for the next interval
-
+            retries += 1
+            print(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
+            if retries >= max_retries:
+                print("Max retries reached. Skipping OTA check for now.")
+                retries = 0  # Reset retries after skipping
+        
+        # Wait before next OTA check
+        await asyncio.sleep(ota_check_interval)
 
 async def mpu6050_task():
     """
@@ -426,7 +411,7 @@ async def temperature_task():
 
 #async def main():
     #await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
-async def auto_reboot_task(interval_hours):
+async def auto_reboot_task(interval_hours=12):
     interval_seconds = interval_hours * 3600
     while True:
         print(f"Rebooting in {interval_hours} hours...")
@@ -439,7 +424,7 @@ async def main():
     gc.collect()
     # Run independent tasks
     tasks = [
-        asyncio.create_task(ota_task(interval_minutes=10)),
+        asyncio.create_task(ota_task()),
         asyncio.create_task(mpu6050_task()),
         asyncio.create_task(temperature_task()),
         asyncio.create_task(auto_reboot_task(4)),  # Auto-reboot every 4 hours
