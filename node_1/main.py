@@ -18,12 +18,11 @@ MPU6050_ADDR = 0x68  # I2C address of the MPU6050 sensor
 PWR_MGMT_1 = 0x6B  # Power management register
 BROKER = "13.232.192.17"  # MQTT broker
 PORT = 1883  # MQTT port
-REBOOT_TOPIC = f"OC7/remote_control/N{NODE_ID}"  # Topic for receiving commands
-FAULT_TOPIC = f"OC7/fault/N{NODE_ID}" # Topic for publishing status/fault
+REBOOT_TOPIC = "remote_control"  # Topic for receiving commands
 ##########################Update This########################
 NODE_ID = 2
 #############################################################
-TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing data
+TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
 SSID = "Ramniwas"
 PASSWORD = "lasvegas@007"
@@ -50,35 +49,6 @@ mpu6050_initialized = False  # Tracks if MPU6050 is initialized
 OFFSET_FILE = "mpu6050_offsets.json"
 
 last_error_time = 0  # Global variable to track last error print time
-
-fault_client = None
-
-# Global MQTT client for fault logging
-fault_client = None
-
-# Redirect print to MQTT fault logger
-async def log_message(message):
-    """Logs the message to the terminal and sends it to the MQTT 'fault' topic."""
-    global fault_client
-    try:
-        print(message)  # Log to terminal
-        if fault_client:
-            fault_client.publish(FAULT_TOPIC, message)  # Publish to MQTT
-    except Exception as e:
-        print(f"Error sending log message to MQTT: {e}")
-
-# Setup MQTT client for fault logging
-async def setup_fault_mqtt():
-    """Sets up the MQTT client for fault logging."""
-    global fault_client
-    fault_client = MQTTClient("fault_logger", BROKER, port=PORT)
-    try:
-        fault_client.connect()
-        await log_message("Connected to MQTT broker for fault logging.")
-    except Exception as e:
-        print(f"Failed to connect to MQTT broker for fault logging: {e}")
-        fault_client = None
-
 
 
 # Global variable for offsets
@@ -117,46 +87,30 @@ async def initialize_mpu6050():
     try:
         # Wake up the MPU6050 as it starts in sleep mode
         i2c.writeto_mem(MPU6050_ADDR, PWR_MGMT_1, b'\x00')  # Write 0 to PWR_MGMT_1 to wake it up
-        #print("MPU6050 initialized successfully.")
-        await log_message("MPU6050 initialized successfully.")
+        print("MPU6050 initialized successfully.")
         return True
     except Exception as e:
-        #print(f"Failed to initialize MPU6050: {e}")
-        await log_message("Failed to initialize MPU6050: {e}")
+        print(f"Failed to initialize MPU6050: {e}")
         return False
 
 
 # MQTT callback function
 def on_message(topic, msg):
-    try:
-        print(f"Received message on {topic}: {msg}")
-        asyncio.create_task(log_message(f"Received message on {topic}: {msg}"))
-        # Decode msg from bytes to string
-        msg_str = msg.decode("utf-8")  # Ensure it's decoded to a string
-        topic_str = topic.decode("utf-8")  # Decode topic if necessary
+    print(f"Received message on {topic}: {msg}")
+    
+    # Decode msg from bytes to string
+    msg_str = msg.decode('utf-8')  # Ensure it's decoded to a string
+    topic_str = topic.decode('utf-8')  # Decode topic if necessary
 
-        # Check if the message is a "reboot" command
-        if topic_str == REBOOT_TOPIC:
-            if msg_str == "reboot":
-                print("Reboot command received. Rebooting device...")
-                asyncio.create_task(log_message("Reboot command received. Rebooting device..."))
-                # Introduce a delay to allow log_message to complete
-                asyncio.create_task(schedule_reboot())
-            elif msg_str == "calibrate":
-                print("Calibration command received. Starting calibration...")
-                asyncio.create_task(log_message("Calibration command received. Starting calibration..."))
-                asyncio.create_task(trigger_calibration())
-
-    except Exception as e:
-        print(f"Error in on_message: {e}")
-        asyncio.create_task(log_message(f"Error in on_message: {e}"))
-
-async def schedule_reboot():
-    try:
-        await asyncio.sleep(5)  # Wait 1 second to allow log_message to complete
-        machine.reset()  # Perform the reboot
-    except Exception as e:
-        await log_message(f"Error during scheduled reboot: {e}")
+    # Check if the message is a "reboot" command
+    if topic_str == REBOOT_TOPIC and msg_str == "reboot":
+        print("Reboot command received. Rebooting device...")
+        machine.reset()
+    
+    # Handle calibration command
+    elif topic_str == REBOOT_TOPIC and msg_str == "calibrate":
+        print("Calibration command received. Starting calibration...")
+        asyncio.create_task(trigger_calibration())
 
 
 # Asynchronous functions
@@ -168,8 +122,7 @@ async def get_firmware_version():
             gc.collect()
             return version_data.get("version", "unknown")
     except Exception as e:
-        #print(f"Failed to read version file: {e}")
-        await log_message(f"Failed to read version file: {e}")
+        print(f"Failed to read version file: {e}")
         return "0"
 
 async def connect_mqtt():
@@ -235,17 +188,12 @@ async def check_mqtt_messages(client):
 async def read_accel(i2c, offsets):
     ax_offset, ay_offset, az_offset = offsets
     try:
-        #ax = read_i2c_word(i2c, 0x3B) - ax_offset
-        #ay = read_i2c_word(i2c, 0x3D) - ay_offset
-        #az = read_i2c_word(i2c, 0x3F) - az_offset
-        ax = await read_i2c_word(i2c, 0x3B) - ax_offset
-        ay = await read_i2c_word(i2c, 0x3D) - ay_offset
-        az = await read_i2c_word(i2c, 0x3F) - az_offset
-
+        ax = read_i2c_word(i2c, 0x3B) - ax_offset
+        ay = read_i2c_word(i2c, 0x3D) - ay_offset
+        az = read_i2c_word(i2c, 0x3F) - az_offset
         return ax / 16384.0, ay / 16384.0, az / 16384.0
     except Exception as e:
-        await log_message(f"Error reading accelerometer: {e}")
-        #print(f"Error reading accelerometer: {e}")
+        print(f"Error reading accelerometer: {e}")
         return 0.0, 0.0, 0.0
     
 async def calculate_rms(i2c, offsets, num_samples=500):
@@ -270,15 +218,14 @@ async def calibrate_mpu6050(i2c):
     
     for _ in range(num_samples):
         try:
-            ax = await read_i2c_word(i2c, 0x3B)
-            ay = await read_i2c_word(i2c, 0x3D)
-            az = await read_i2c_word(i2c, 0x3F)
+            ax = read_i2c_word(i2c, 0x3B)
+            ay = read_i2c_word(i2c, 0x3D)
+            az = read_i2c_word(i2c, 0x3F)
             ax_offset += ax
             ay_offset += ay
             az_offset += az
         except Exception as e:
-            await log_message(f"Calibration error: {str(e)}")
-            #print(f"Calibration error: {str(e)}")  # Use `str()` to safely convert the exception to a string
+            print(f"Calibration error: {str(e)}")  # Use `str()` to safely convert the exception to a string
             ax, ay, az = 0, 0, 0  # Use default values for this sample
     gc.collect()
     
@@ -292,7 +239,7 @@ async def calibrate_mpu6050(i2c):
     return ax_offset, ay_offset, az_offset
 
 
-async def read_i2c_word(i2c, register):
+def read_i2c_word(i2c, register):
     global last_error_time
     try:
         data = i2c.readfrom_mem(MPU6050_ADDR, register, 2)
@@ -304,8 +251,7 @@ async def read_i2c_word(i2c, register):
     except Exception as e:
         current_time = time.time()
         if current_time - last_error_time > 10:  # 10 seconds
-            await log_message(f"Error reading I2C register {register}: {e}")
-            #print(f"Error reading I2C register {register}: {e}")
+            print(f"Error reading I2C register {register}: {e}")
             last_error_time = current_time
         gc.collect()
         return 0  # Return a default value to prevent further errors
@@ -321,15 +267,12 @@ async def read_temperature():
 async def trigger_calibration():
     global offsets
     try:
-        #print("Calibrating MPU6050...")
-        await log_message("Calibrating MPU6050...")
+        print("Calibrating MPU6050...")
         offsets = await calibrate_mpu6050(i2c)  # Calibrate the sensor
         save_offsets_to_file(offsets)          # Save offsets to file
-        #print(f"Calibration complete: {offsets}")
-        await log_message(f"Calibration complete: {offsets}")
+        print(f"Calibration complete: {offsets}")
     except Exception as e:
-        #print(f"Error during calibration: {e}")
-        await log_message(f"Error during calibration: {e}")
+        print(f"Error during calibration: {e}")
 
 async def ota_task():
     retries = 0
@@ -346,22 +289,18 @@ async def ota_task():
             
             # Check for updates
             if await ota_updater.check_for_updates():
-                #print("Update available. Starting download...")
-                await log_message("Update available. Starting download...")
+                print("Update available. Starting download...")
                 ota_updater.update_and_reset()
                 return  # Exit if update is successful
             else:
-                #print("No update available.")
-                await log_message("No update available.")
+                print("No update available.")
                 retries = 0  # Reset retries on successful check
             
         except Exception as e:
             retries += 1
-            #print(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
-            await log_message(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
+            print(f"Error in OTA update: {e}. Retry {retries}/{max_retries}")
             if retries >= max_retries:
-                #print("Max retries reached. Skipping OTA check for now.")
-                await log_message("Max retries reached. Skipping OTA check for now.")
+                print("Max retries reached. Skipping OTA check for now.")
                 retries = 0  # Reset retries after skipping
         
         # Wait before next OTA check
@@ -377,30 +316,24 @@ async def mpu6050_task():
         try:
             # Detect MPU6050
             if not mpu6050_initialized and await detect_mpu6050():
-                #print("MPU6050 detected. Initializing...")
-                await log_message("MPU6050 detected. Initializing...")
+                print("MPU6050 detected. Initializing...")
                 try:
                     await initialize_mpu6050()
                     mpu6050_initialized = True  # Mark as initialized
-                    #print("MPU6050 initialization successful.")
-                    await log_message("MPU6050 initialization successful.")
+                    print("MPU6050 initialization successful.")
                     
                     # Reload offsets after reinitialization
                     offsets = load_offsets_from_file()
-                    #print(f"Offsets reloaded: {offsets}")
-                    await log_message(f"Offsets reloaded: {offsets}")
+                    print(f"Offsets reloaded: {offsets}")
                 except Exception as e:
-                    #print(f"MPU6050 initialization failed: {e}")
-                    await log_message(f"MPU6050 initialization failed: {e}")
+                    print(f"MPU6050 initialization failed: {e}")
                     mpu6050_initialized = False  # Reset on failure
             elif not await detect_mpu6050():
                 if mpu6050_initialized:
-                    #print("MPU6050 disconnected!")
-                    await log_message("MPU6050 disconnected!")
+                    print("MPU6050 disconnected!")
                 mpu6050_initialized = False  # Reset if disconnected
         except Exception as e:
-            #print(f"Error in MPU6050 task: {e}")
-            await log_message(f"Error in MPU6050 task: {e}")
+            print(f"Error in MPU6050 task: {e}")
             mpu6050_initialized = False  # Reset on any error
 
         # Delay before next detection attempt
@@ -430,20 +363,17 @@ async def temperature_task():
                 try:
                     ax, ay, az = await calculate_rms(i2c, offsets)
                     if ax is None or ay is None or az is None:
-                        #print("Invalid accelerometer data. Skipping cycle.")
-                        await log_message(f"Error in MPU6050 task: {e}")
+                        print("Invalid accelerometer data. Skipping cycle.")
                         continue
                 except Exception as e:
-                    #print(f"Error reading accelerometer: {e}")
-                    await log_message(f"Error reading accelerometer: {e}")
+                    print(f"Error reading accelerometer: {e}")
                     continue
             else:
                 ax, ay, az = None, None, None  # Placeholder if MPU6050 not initialized
 
             temperature = await read_temperature()
             if temperature is None:
-                #print("Invalid temperature data. Skipping cycle.")
-                await log_message("Invalid temperature data. Skipping cycle.")
+                print("Invalid temperature data. Skipping cycle.")
                 await asyncio.sleep(5)
                 temperature = 999
 
@@ -485,29 +415,23 @@ async def temperature_task():
 
 #async def main():
     #await asyncio.gather(ota_task(), led_blink_task(), mpu6050_task(), temperature_task())
-async def auto_reboot_task(interval_hours=80):
+async def auto_reboot_task(interval_hours=12):
     interval_seconds = interval_hours * 3600
     while True:
-        #print(f"Rebooting in {interval_hours} hours...")
-        await log_message(f"Rebooting in {interval_hours} hours...")
+        print(f"Rebooting in {interval_hours} hours...")
         await asyncio.sleep(interval_seconds)
-        #print("Rebooting now...")
-        await log_message("Rebooting now...")
+        print("Rebooting now...")
         machine.reset()
 
 
 async def main():
     gc.collect()
-    
-    # Setup the MQTT client for fault logging
-    await setup_fault_mqtt()
-    
     # Run independent tasks
     tasks = [
         asyncio.create_task(ota_task()),
         asyncio.create_task(mpu6050_task()),
         asyncio.create_task(temperature_task()),
-        asyncio.create_task(auto_reboot_task(80)),  # Auto-reboot every 4 hours
+        asyncio.create_task(auto_reboot_task(4)),  # Auto-reboot every 4 hours
     ]
     await asyncio.gather(*tasks)
     gc.collect()
