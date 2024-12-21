@@ -9,6 +9,7 @@ from ota import OTAUpdater
 import gc
 import math
 import time
+import ubinascii
 
 # Constants
 RTD_NOMINAL = 100.0  # Resistance of RTD at 0°C
@@ -24,8 +25,8 @@ NODE_ID = 2
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
-SSID = "Ramniwas"
-PASSWORD = "lasvegas@007"
+SSID = "AirFiber-Shoo6u"
+PASSWORD = "phoPee5johx7feuh"
 
 # SPI and I2C setup
 sck = machine.Pin(18, machine.Pin.OUT)
@@ -125,19 +126,27 @@ async def get_firmware_version():
         print(f"Failed to read version file: {e}")
         return "0"
 
+def generate_random_id(length=8):
+    """Generate a random ID of the specified length."""
+    random_bytes = os.urandom(length // 2)  # Generate random bytes
+    return ubinascii.hexlify(random_bytes).decode().upper()
+
 async def connect_mqtt():
-    client = MQTTClient(TOPIC, BROKER, port=PORT, keepalive=60)
-    client.set_callback(on_message)
     try:
+        # Generate a random ID for the MQTT client
+        random_id = generate_random_id()
+        
+        client = MQTTClient(random_id.encode(), BROKER, port=PORT, keepalive=60)
+        client.set_callback(on_message)
         client.connect()
         client.subscribe(REBOOT_TOPIC)  # Subscribe to the reboot topic
-        print("Connected to MQTT broker and subscribed to topic")
+        print(f"Connected to MQTT broker as {random_id} and subscribed to topic")
         gc.collect()
         return client
     except Exception as e:
         print(f"Failed to connect to MQTT broker: {e}")
         return None
-
+    
 async def reconnect_mqtt(client):
     try:
         if client:  # Disconnect only if the client exists
@@ -379,17 +388,13 @@ async def temperature_task():
 
             # Prepare and publish data
             data = (
-                (f"N{NODE_ID}, " 
-            ) +
-                f"AccX: {ax:.10f}, " if ax is not None else "AccX: 0.0, "
-            ) + (
-                f"AccY: {ay:.10f}, " if ay is not None else "AccY: 0.0, "
-            ) + (
-                f"AccZ: {az:.10f}, " if az is not None else "AccZ: 0.0, "
-            ) + f"Temp: {temperature:.8f}C, FW: {firmware_version}"
-
-
-            
+                        f"N{NODE_ID}, " +
+                        (f"AccX: {ax:.10f}, " if ax is not None else "AccX: 0.0, ") +
+                        (f"AccY: {ay:.10f}, " if ay is not None else "AccY: 0.0, ") +
+                        (f"AccZ: {az:.10f}, " if az is not None else "AccZ: 0.0, ") +
+                        f"Temp: {temperature:.8f}C, FW: {firmware_version}"
+                    )
+  
             client = await publish_data(client, data)
             #print(f"Free memory: {gc.mem_free()} bytes")
             
