@@ -126,7 +126,7 @@ async def get_firmware_version():
         return "0"
 
 async def connect_mqtt():
-    client = MQTTClient("esp32_client", BROKER, port=PORT, keepalive=60)
+    client = MQTTClient(TOPIC, BROKER, port=PORT, keepalive=60)
     client.set_callback(on_message)
     try:
         client.connect()
