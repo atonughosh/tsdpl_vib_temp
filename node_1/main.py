@@ -21,12 +21,12 @@ BROKER = "13.232.192.17"  # MQTT broker
 PORT = 1883  # MQTT port
 REBOOT_TOPIC = "remote_control"  # Topic for receiving commands
 ##########################Update This########################
-NODE_ID = 2
+NODE_ID = 1
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
-SSID = "AirFiber-Shoo6u"
-PASSWORD = "phoPee5johx7feuh"
+SSID = "Airtel_Ellipse Nelvana"
+PASSWORD = "hare_krishna"
 
 # SPI and I2C setup
 sck = machine.Pin(18, machine.Pin.OUT)
