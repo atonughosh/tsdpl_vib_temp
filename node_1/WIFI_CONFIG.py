@@ -1,2 +1,2 @@
-SSID = "AirFiber-Shoo6u"
-PASSWORD = "phoPee5johx7feuh"
+SSID = "OC7"
+PASSWORD = "oc7@bara"

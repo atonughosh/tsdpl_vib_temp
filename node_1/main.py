@@ -25,8 +25,8 @@ NODE_ID = 1
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
-SSID = "Airtel_Ellipse Nelvana"
-PASSWORD = "hare_krishna"
+SSID = "OC7"
+PASSWORD = "oc7@bara"
 
 # SPI and I2C setup
 sck = machine.Pin(18, machine.Pin.OUT)

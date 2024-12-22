@@ -1,2 +1,2 @@
-SSID = "Ramniwas"
-PASSWORD = "lasvegas@007"
+SSID = "OC7"
+PASSWORD = "oc7@bara"
