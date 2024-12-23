@@ -21,25 +21,12 @@ BROKER = "13.232.192.17"  # MQTT broker
 PORT = 1883  # MQTT port
 REBOOT_TOPIC = "remote_control"  # Topic for receiving commands
 ##########################Update This########################
-<<<<<<< HEAD
-NODE_ID = 10
+NODE_ID = 3
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
 SSID = "OC7"
 PASSWORD = "oc7@bara"
-=======
-NODE_ID = 3
-#############################################################
-TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
-firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
-
-# SSID = "AirFiber-Shoo6u"
-# PASSWORD = "phoPee5johx7feuh"
-
-SSID: "OC7"
-Password: "oc7@bara"
->>>>>>> 050006fecf3d0ce90af50c57799733c4c48d0a0b
 
 # SPI and I2C setup
 sck = machine.Pin(18, machine.Pin.OUT)
