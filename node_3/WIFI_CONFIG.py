@@ -1,2 +1,2 @@
-SSID: "OC7"
-Password: "oc7@bara"
+SSID = "OC7"
+PASSWORD = "oc7@bara"
