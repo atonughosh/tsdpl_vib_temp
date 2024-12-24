@@ -21,7 +21,7 @@ BROKER = "192.168.1.101"  # MQTT broker
 PORT = 1883  # MQTT port
 REBOOT_TOPIC = "remote_control"  # Topic for receiving commands
 ##########################Update This########################
-NODE_ID = 6
+NODE_ID = 2
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
