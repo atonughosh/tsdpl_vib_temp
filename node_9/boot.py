@@ -15,7 +15,7 @@ except ImportError:
 from ota import OTAUpdater
 from WIFI_CONFIG import SSID, PASSWORD
 import gc
-NODE_ID = "6"
+NODE_ID = "9"
 
 gc.collect()
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
