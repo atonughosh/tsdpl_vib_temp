@@ -17,11 +17,11 @@ RTD_REFERENCE = 402.0  # Reference resistor on the PCB
 RTD_WIRES = 3  # 3-wire configuration
 MPU6050_ADDR = 0x68  # I2C address of the MPU6050 sensor
 PWR_MGMT_1 = 0x6B  # Power management register
-BROKER = "13.232.192.17"  # MQTT broker
+BROKER = "192.168.1.101"  # MQTT broker
 PORT = 1883  # MQTT port
 REBOOT_TOPIC = "remote_control"  # Topic for receiving commands
 ##########################Update This########################
-NODE_ID = 9
+NODE_ID = 6
 #############################################################
 TOPIC = f"OC7/data/N{NODE_ID}"  # Topic for publishing
 firmware_url = "https://github.com/atonughosh/tsdpl_vib_temp"
